@@ -10,12 +10,11 @@
 
 @interface KBViewController ()
 
-- (BOOL)prepareToRecord;
-- (BOOL)startRecording;
+- (void)prepareToRecord;
+- (void)startRecording;
 - (void)stopRecording;
 - (BOOL)startAudioSession;
-- (BOOL)stopAudioSession;
-- (BOOL)startPlaying;
+- (void)startPlaying;
 - (void)stopPlaying;
 - (void)startPulseEffectOnButton;
 - (void)stopPulseEffectOnButton;
@@ -25,20 +24,22 @@
 @property (strong) AVAudioPlayer *player;
 @property (strong) NSURL *recordedAudioUrl;
 @property (strong) NSURL *flippedAudioUrl;
-
 @property (assign) ePlayerStatusType currentState;
 
 @end
 
+#pragma mark -
 
 @implementation KBViewController
+
 @synthesize session;
 @synthesize recorder;
 @synthesize player;
 @synthesize recordedAudioUrl;
 @synthesize flippedAudioUrl;
-
 @synthesize currentState;
+
+#pragma mark -
 
 - (void)didReceiveMemoryWarning
 {
@@ -49,19 +50,18 @@
 - (void) viewDidLoad
 {
     [super viewDidLoad];
-    
     self.currentState = eRecordableState;
-    
 	if ([self startAudioSession])
     {
 		[self prepareToRecord];
     }
 }
 
-
+#pragma mark -
+#pragma mark Action methods
+#pragma mark -
 -(IBAction)record:(id)sender
 {
-    
     switch (self.currentState)
     {
         case eRecordableState:
@@ -100,6 +100,11 @@
             [sender setImage:[UIImage imageNamed:@"bt_Record.png"] forState:UIControlStateNormal];
             self.textImageView.image = [UIImage imageNamed:@"txt_ReadMe.png"];
             [self stopPulseEffectOnButton];
+
+            //Delete the flipped song
+            NSError *error;
+            if(![[NSFileManager defaultManager] removeItemAtURL:self.flippedAudioUrl error:&error])
+                NSLog(@"Error: %@", [error localizedDescription]);
         }
         break;
             
@@ -122,6 +127,9 @@
     self.textImageView.image = [UIImage imageNamed:@"txt_ReadMe.png"];
     self.currentState = eRecordableState;
     [self stopPulseEffectOnButton];
+    NSError *error;
+    if(![[NSFileManager defaultManager] removeItemAtURL:self.flippedAudioUrl error:&error])
+        NSLog(@"Error: %@", [error localizedDescription]);
 }
 
 - (void)audioRecorderDidFinishRecording:(AVAudioRecorder *)recorder successfully:(BOOL)flag
@@ -194,24 +202,28 @@
         readPoint -= 2;
     }
     
+    free(theData);
     AudioFileClose(inputAudioFile);
 	AudioFileClose(outputAudioFile);
+    
+    //Also delete the recorded audio
+    NSError *error;
+    if (![[NSFileManager defaultManager] removeItemAtURL:self.recordedAudioUrl error:&error])
+		NSLog(@"Error: %@", [error localizedDescription]);
     
     [self.maskView performSelectorOnMainThread:@selector(setHidden:) withObject:[NSNumber numberWithBool:YES] waitUntilDone:NO];
 }
 
 
-- (BOOL)startRecording
+- (void)startRecording
 {
  	if (![self.recorder record])
 	{
 		NSLog(@"Error: Record failed");
-		return NO;
 	}
-	return TRUE;
 }
 
--(BOOL)prepareToRecord
+-(void)prepareToRecord
 {
 	NSError *error;
 	
@@ -237,35 +249,26 @@
 	if (!self.recorder)
 	{
 		NSLog(@"Error: %@", [error localizedDescription]);
-		return NO;
 	}
 	
 	// Initialize degate, metering, etc.
 	self.recorder.delegate = self;
-    //	self.recorder.meteringEnabled = YES;
 	
 	if (![self.recorder prepareToRecord])
 	{
 		NSLog(@"Error: Prepare to record failed");
-		return NO;
 	}
-    
-	return YES;
 }
 
 
--(BOOL)startPlaying
+-(void)startPlaying
 {
-    NSURL *outputURL = [[NSURL alloc] initFileURLWithPath:[DOCUMENTS_FOLDER stringByAppendingPathComponent:@"result"]];
-    
-    player = [[AVAudioPlayer alloc] initWithContentsOfURL:outputURL error:nil];
+    player = [[AVAudioPlayer alloc] initWithContentsOfURL:self.flippedAudioUrl error:nil];
     player.delegate = self;
     if(![self.player play])
     {
         NSLog(@"Error: Play failed");
-		return NO;
     }
-    return YES;
 }
 
 -(void)stopPlaying
@@ -299,26 +302,14 @@
                              &ASRoute
                              );
     
-	return self.session.inputIsAvailable;
+	return self.session.inputAvailable;//make sure ;)
 }
 
-- (BOOL)stopAudioSession
-{
-	NSLog(@"stopAudioSession");
-    NSError *error;
-	if (![self.session setActive:NO error:&error])
-	{
-		NSLog(@"Error: %@", [error localizedDescription]);
-		return NO;
-	}
-	return true;
-}
 
 -(void)startPulseEffectOnButton
 {
     CABasicAnimation *theAnimation;
     
-    //            theAnimation=[CABasicAnimation animationWithKeyPath:@"transform.scale"];
     theAnimation=[CABasicAnimation animationWithKeyPath:@"opacity"];
     theAnimation.duration=0.8;
     theAnimation.repeatCount=HUGE_VALF;
@@ -326,8 +317,8 @@
     theAnimation.timingFunction = [CAMediaTimingFunction functionWithName: kCAMediaTimingFunctionEaseInEaseOut];
     theAnimation.fromValue=[NSNumber numberWithFloat:1.0];
     theAnimation.toValue=[NSNumber numberWithFloat:0.3];
+    
     [self.button.layer addAnimation:theAnimation forKey:@"animateOpacity"];
-
 }
 
 -(void)stopPulseEffectOnButton
