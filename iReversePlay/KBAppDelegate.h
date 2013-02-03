@@ -1,9 +1,9 @@
 //
 //  KBAppDelegate.h
-//  RecordndPlay
+//  iReversePlay
 //
-//  Created by Kiran B on 30/1/13.
-//  Copyright (c) 2013 Kiran B. All rights reserved.
+//  Created by Kiran on 2/2/13.
+//  Copyright (c) 2013 Kiran. All rights reserved.
 //
 
 #import <UIKit/UIKit.h>

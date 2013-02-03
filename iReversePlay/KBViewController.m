@@ -1,9 +1,9 @@
 //
 //  KBViewController.m
-//  RecordndPlay
+//  iReversePlay
 //
-//  Created by Kiran B on 30/1/13.
-//  Copyright (c) 2013 Kiran B. All rights reserved.
+//  Created by Kiran on 2/2/13.
+//  Copyright (c) 2013 Kiran. All rights reserved.
 //
 
 #import "KBViewController.h"
@@ -24,10 +24,8 @@
 @property (strong) NSURL *recordedAudioUrl;
 @property (strong) NSURL *flippedAudioUrl;
 
-@property (assign) ePlayerStatusType previousState;
 @property (assign) ePlayerStatusType currentState;
 
-@property (assign) BOOL isAudioRecorded;
 @end
 
 
@@ -38,9 +36,7 @@
 @synthesize recordedAudioUrl;
 @synthesize flippedAudioUrl;
 
-@synthesize previousState;
 @synthesize currentState;
-@synthesize isAudioRecorded;
 
 - (void)didReceiveMemoryWarning
 {
@@ -52,6 +48,8 @@
 {
     [super viewDidLoad];
     
+    self.currentState = eRecordableState;
+    
 	if ([self startAudioSession])
     {
 		[self prepareToRecord];
@@ -61,43 +59,53 @@
 
 -(IBAction)record:(id)sender
 {
-    if(NO == self.isAudioRecorded && ![sender isSelected])
+    
+    switch (self.currentState)
     {
-        [self startRecording];
+        case eRecordableState:
+        {
+            self.currentState = eRecordingState;
+            [self startRecording];
+            [sender setImage:[UIImage imageNamed:@"bt_Stop.png"] forState:UIControlStateNormal];
+        }
+            break;
+            
+        case eRecordingState:
+        {
+            self.currentState = ePlayableState;
+            [self performSelectorInBackground:@selector(stopRecording) withObject:nil];
+            
+            [self.maskView setHidden:NO];
+            
+            //[self stopRecording];
+            [sender setImage:[UIImage imageNamed:@"bt_Play.png"] forState:UIControlStateNormal];
+        }
+            break;
+            
+        case ePlayableState:
+        {
+            self.currentState = ePlayingState;
+            [self startPlaying];
+            [sender setImage:[UIImage imageNamed:@"bt_Stop.png"] forState:UIControlStateNormal];
+            self.textImageView.image = [UIImage imageNamed:@"txt_Playback.png"];
+        }
+            break;
+            
+        case ePlayingState:
+        {
+            self.currentState = eRecordableState;
+            [self stopPlaying];
+            [sender setImage:[UIImage imageNamed:@"bt_Record.png"] forState:UIControlStateNormal];
+            self.textImageView.image = [UIImage imageNamed:@"txt_ReadMe.png"];
+        }
+            break;
+            
+        default:
+            break;
     }
-    else if(YES == self.isAudioRecorded && ![sender isSelected])
-    {
-        [self startPlaying];
-    }
-    [sender setSelected:YES];
-    [sender addTarget:self
-               action:@selector(stop:)
-       forControlEvents:UIControlEventTouchUpInside];
-
+    
+    
 }
-
--(IBAction)stop:(id)sender
-{
-    if(NO == self.isAudioRecorded && [sender isSelected])
-    {
-        [self stopRecording];
-        
-        [sender setImage:[UIImage imageNamed:@"bt_Play.png"] forState:UIControlStateNormal];
-    }
-    else if(YES == self.isAudioRecorded && [sender isSelected])
-    {
-        [self stopPlaying];
-        [sender setImage:[UIImage imageNamed:@"bt_Record.png"] forState:UIControlStateNormal];
-
-    }
-    [sender setSelected:NO];
-    [sender addTarget:self
-               action:@selector(record:)
-     forControlEvents:UIControlEventTouchUpInside];
-}
-
-
-
 
 
 #pragma mark -
@@ -107,8 +115,9 @@
 - (void)audioPlayerDidFinishPlaying:(AVAudioPlayer *)player successfully:(BOOL)flag
 {
 	NSLog(@"audioPlayerDidFinishPlaying");
-    self.button.selected = NO;
     [self.button setImage:[UIImage imageNamed:@"bt_Record.png"] forState:UIControlStateNormal];
+    self.textImageView.image = [UIImage imageNamed:@"txt_ReadMe.png"];
+    self.currentState = eRecordableState;
 }
 
 - (void)audioRecorderDidFinishRecording:(AVAudioRecorder *)recorder successfully:(BOOL)flag
@@ -126,12 +135,11 @@
 {
 	[self.recorder stop];
     
-    self.isAudioRecorded = YES;
     /*
-        As each sample is 16-bits in size(2 bytes)(mono channel).
-        You can load each sample at a time by copying it into a different buffer by starting at the end of the recording and
-        reading backwards. When you get to the start of the data you have reversed the data and playing will be reversed.
-    */
+     As each sample is 16-bits in size(2 bytes)(mono channel).
+     You can load each sample at a time by copying it into a different buffer by starting at the end of the recording and
+     reading backwards. When you get to the start of the data you have reversed the data and playing will be reversed.
+     */
     
     // set up output file
     AudioFileID outputAudioFile;
@@ -174,7 +182,7 @@
     while( readPoint > 0 )
     {
         UInt32 bytesToRead = 2;
-
+        
         AudioFileReadBytes( inputAudioFile, false, readPoint, &bytesToRead, theData );
         AudioFileWriteBytes( outputAudioFile, false, writePoint, &bytesToRead, theData );
         
@@ -184,8 +192,10 @@
     
     AudioFileClose(inputAudioFile);
 	AudioFileClose(outputAudioFile);
-
+    
+    [self.maskView performSelectorOnMainThread:@selector(setHidden:) withObject:[NSNumber numberWithBool:YES] waitUntilDone:NO];
 }
+
 
 - (BOOL)startRecording
 {
@@ -228,14 +238,14 @@
 	
 	// Initialize degate, metering, etc.
 	self.recorder.delegate = self;
-//	self.recorder.meteringEnabled = YES;
+    //	self.recorder.meteringEnabled = YES;
 	
 	if (![self.recorder prepareToRecord])
 	{
 		NSLog(@"Error: Prepare to record failed");
 		return NO;
 	}
-	    
+    
 	return YES;
 }
 
@@ -256,7 +266,6 @@
 
 -(void)stopPlaying
 {
-    self.isAudioRecorded = NO;
     [self.player stop];
 }
 
@@ -266,7 +275,6 @@
 	NSLog(@"startAudioSession");
 	// Prepare the audio session
 	NSError *error;
-    self.isAudioRecorded = NO;
 	self.session = [AVAudioSession sharedInstance];
 	
 	if (![self.session setCategory:AVAudioSessionCategoryPlayAndRecord error:&error])
@@ -301,6 +309,5 @@
 	}
 	return true;
 }
-
 
 @end

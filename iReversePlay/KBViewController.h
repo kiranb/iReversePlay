@@ -1,12 +1,13 @@
 //
 //  KBViewController.h
-//  RecordndPlay
+//  iReversePlay
 //
-//  Created by Kiran B on 30/1/13.
-//  Copyright (c) 2013 Kiran B. All rights reserved.
+//  Created by Kiran on 2/2/13.
+//  Copyright (c) 2013 Kiran. All rights reserved.
 //
 
 #import <UIKit/UIKit.h>
+
 #import <AVFoundation/AVFoundation.h>
 #import <CoreAudio/CoreAudioTypes.h>
 
@@ -14,17 +15,18 @@
 
 typedef enum
 {
-    eInitial = 0,
-    eRecord,
-    eStop,
-    ePlay,
+    eRecordableState= 0,
+    eRecordingState,
+    ePlayableState,
+    ePlayingState,
 }ePlayerStatusType;
 
 @interface KBViewController : UIViewController <AVAudioRecorderDelegate, AVAudioPlayerDelegate>
 
 @property (weak, nonatomic) IBOutlet UIButton *button;
+@property (weak, nonatomic) IBOutlet UIImageView *textImageView;
+@property (weak, nonatomic) IBOutlet UIView *maskView;
 
 -(IBAction)record:(id)sender;
--(IBAction)stop:(id)sender;
 
 @end
