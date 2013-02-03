@@ -17,6 +17,8 @@
 - (BOOL)stopAudioSession;
 - (BOOL)startPlaying;
 - (void)stopPlaying;
+- (void)startPulseEffectOnButton;
+- (void)stopPulseEffectOnButton;
 
 @property (strong) AVAudioSession *session;
 @property (strong) AVAudioRecorder *recorder;
@@ -67,29 +69,29 @@
             self.currentState = eRecordingState;
             [self startRecording];
             [sender setImage:[UIImage imageNamed:@"bt_Stop.png"] forState:UIControlStateNormal];
+            [self startPulseEffectOnButton];
         }
-            break;
+        break;
             
         case eRecordingState:
         {
             self.currentState = ePlayableState;
             [self performSelectorInBackground:@selector(stopRecording) withObject:nil];
-            
             [self.maskView setHidden:NO];
-            
-            //[self stopRecording];
             [sender setImage:[UIImage imageNamed:@"bt_Play.png"] forState:UIControlStateNormal];
+            [self stopPulseEffectOnButton];
         }
-            break;
+        break;
             
         case ePlayableState:
         {
             self.currentState = ePlayingState;
             [self startPlaying];
-            [sender setImage:[UIImage imageNamed:@"bt_Stop.png"] forState:UIControlStateNormal];
             self.textImageView.image = [UIImage imageNamed:@"txt_Playback.png"];
+            [sender setImage:[UIImage imageNamed:@"bt_Stop.png"] forState:UIControlStateNormal];
+            [self startPulseEffectOnButton];
         }
-            break;
+        break;
             
         case ePlayingState:
         {
@@ -97,8 +99,9 @@
             [self stopPlaying];
             [sender setImage:[UIImage imageNamed:@"bt_Record.png"] forState:UIControlStateNormal];
             self.textImageView.image = [UIImage imageNamed:@"txt_ReadMe.png"];
+            [self stopPulseEffectOnButton];
         }
-            break;
+        break;
             
         default:
             break;
@@ -118,6 +121,7 @@
     [self.button setImage:[UIImage imageNamed:@"bt_Record.png"] forState:UIControlStateNormal];
     self.textImageView.image = [UIImage imageNamed:@"txt_ReadMe.png"];
     self.currentState = eRecordableState;
+    [self stopPulseEffectOnButton];
 }
 
 - (void)audioRecorderDidFinishRecording:(AVAudioRecorder *)recorder successfully:(BOOL)flag
@@ -310,4 +314,24 @@
 	return true;
 }
 
+-(void)startPulseEffectOnButton
+{
+    CABasicAnimation *theAnimation;
+    
+    //            theAnimation=[CABasicAnimation animationWithKeyPath:@"transform.scale"];
+    theAnimation=[CABasicAnimation animationWithKeyPath:@"opacity"];
+    theAnimation.duration=0.8;
+    theAnimation.repeatCount=HUGE_VALF;
+    theAnimation.autoreverses=YES;
+    theAnimation.timingFunction = [CAMediaTimingFunction functionWithName: kCAMediaTimingFunctionEaseInEaseOut];
+    theAnimation.fromValue=[NSNumber numberWithFloat:1.0];
+    theAnimation.toValue=[NSNumber numberWithFloat:0.3];
+    [self.button.layer addAnimation:theAnimation forKey:@"animateOpacity"];
+
+}
+
+-(void)stopPulseEffectOnButton
+{
+    [self.button.layer removeAnimationForKey:  @"animateOpacity"];
+}
 @end
